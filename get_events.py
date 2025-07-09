@@ -67,43 +67,82 @@ def format_weather_text(weather):
     text += f"予報エリア: {weather['area']}"
     return text
 
-# ==== まいぷれ北近畿イベント取得 ====
+# ==== 修正版：まいぷれ北近畿イベント取得 ====
 def get_mypl_events():
     events = []
     try:
         url = "https://maizuru.mypl.net/event/"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
-        event_items = soup.select(".event-item, .calendar-event, .event-list li, .event-card, article")
-
+        
+        # より汎用的なセレクタを使用
+        event_items = soup.find_all(['div', 'article', 'li'], class_=lambda x: x and any(
+            keyword in x.lower() for keyword in ['event', 'calendar', 'item', 'card', 'list']
+        ))
+        
+        # テキストベースでの検索も追加
+        if not event_items:
+            # すべてのdivやarticleから福知山関連を検索
+            all_elements = soup.find_all(['div', 'article', 'section', 'li'])
+            for elem in all_elements:
+                text = elem.get_text(strip=True)
+                if any(keyword in text for keyword in ["福知山", "ドッコイセ", "由良川"]):
+                    event_items.append(elem)
+        
+        print(f"まいぷれ: {len(event_items)}件の要素を発見")
+        
         for item in event_items:
             try:
-                title_elem = item.select_one("h3, h2, .title, .event-title, .article-title")
-                title = title_elem.text.strip() if title_elem else ""
-                location_elem = item.select_one(".location, .place, .area, .venue")
-                location = location_elem.text.strip() if location_elem else ""
-                if "福知山" in title or "福知山" in location or "ドッコイセ" in title or "由良川" in title:
-                    date_elem = item.select_one(".date, .event-date, .post-date, .calendar-date")
-                    event_date = date_elem.text.strip() if date_elem else ""
-                    desc_elem = item.select_one(".description, .summary, .excerpt")
-                    description = desc_elem.text.strip() if desc_elem else ""
-                    time_elem = item.select_one(".time, .event-time, .schedule")
-                    time_info = time_elem.text.strip() if time_elem else ""
+                # より柔軟なタイトル取得
+                title = ""
+                for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                    title_elem = item.find(tag)
+                    if title_elem:
+                        title = title_elem.get_text(strip=True)
+                        break
+                
+                if not title:
+                    # aタグのテキストをタイトルとして使用
+                    link_elem = item.find('a')
+                    if link_elem:
+                        title = link_elem.get_text(strip=True)
+                
+                # 福知山関連のイベントのみ抽出
+                if title and any(keyword in title for keyword in ["福知山", "ドッコイセ", "由良川"]):
+                    # 日付情報を取得
+                    date_text = ""
+                    date_elem = item.find(['span', 'div', 'p'], class_=lambda x: x and 'date' in x.lower())
+                    if date_elem:
+                        date_text = date_elem.get_text(strip=True)
+                    
+                    # 場所情報を取得
+                    location_text = ""
+                    location_elem = item.find(['span', 'div', 'p'], class_=lambda x: x and any(
+                        keyword in x.lower() for keyword in ['location', 'place', 'area', 'venue']
+                    ))
+                    if location_elem:
+                        location_text = location_elem.get_text(strip=True)
+                    
                     events.append({
                         "title": title,
-                        "date": event_date,
-                        "location": location,
-                        "description": description,
-                        "time": time_info,
+                        "date": date_text,
+                        "location": location_text,
                         "source": "まいぷれ北近畿",
                         "type": "special_event"
                     })
+                    print(f"まいぷれイベント取得: {title}")
+                    
             except Exception as e:
                 print(f"まいぷれイベント解析エラー: {e}")
+                continue
+                
     except Exception as e:
         print(f"まいぷれサイトアクセスエラー: {e}")
+    
     return events
 
 # ==== 年間定期イベント ====
@@ -131,40 +170,84 @@ def get_annual_events():
         })
     return events
 
-# ==== 市公式サイトイベント ====
+# ==== 修正版：市公式サイトイベント ====
 def get_city_special_events():
     events = []
     try:
         urls = [
+            "https://www.city.fukuchiyama.lg.jp/calendar/",  # 修正されたURL
             "https://www.city.fukuchiyama.lg.jp/soshiki/list5-1.html",
-            "https://www.city.fukuchiyama.lg.jp/site/promotion/",
+            "https://dokkoise.com/category/event/",  # 福知山観光協会のイベント情報
         ]
-        headers = {"User-Agent": "Mozilla/5.0"}
+        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        
         for url in urls:
             try:
-                response = requests.get(url, headers=headers)
+                print(f"市公式サイト取得中: {url}")
+                response = requests.get(url, headers=headers, timeout=10)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.content, "html.parser")
-                news_items = soup.select(".news-item, .event-item, .article-item, .info-item")
+                
+                # より汎用的なセレクタ
+                news_items = soup.find_all(['div', 'article', 'li'], class_=lambda x: x and any(
+                    keyword in x.lower() for keyword in ['news', 'event', 'item', 'info', 'calendar']
+                ))
+                
+                # テキストベースでの検索も追加
+                if not news_items:
+                    all_elements = soup.find_all(['div', 'article', 'section', 'li'])
+                    for elem in all_elements:
+                        text = elem.get_text(strip=True)
+                        if any(keyword in text for keyword in ["花火", "祭り", "まつり", "フェス", "コンサート", "イベント", "大会"]):
+                            news_items.append(elem)
+                
+                print(f"市公式 ({url}): {len(news_items)}件の要素を発見")
+                
                 for item in news_items:
                     try:
-                        title_elem = item.select_one("a, h3, h2, .title")
-                        title = title_elem.text.strip() if title_elem else ""
-                        date_elem = item.select_one(".date, .post-date, .event-date")
-                        event_date = date_elem.text.strip() if date_elem else ""
-                        if any(keyword in title for keyword in ["花火", "祭り", "まつり", "フェス", "コンサート", "イベント", "大会"]):
+                        # タイトル取得
+                        title = ""
+                        for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                            title_elem = item.find(tag)
+                            if title_elem:
+                                title = title_elem.get_text(strip=True)
+                                break
+                        
+                        if not title:
+                            link_elem = item.find('a')
+                            if link_elem:
+                                title = link_elem.get_text(strip=True)
+                        
+                        # 日付取得
+                        date_text = ""
+                        date_elem = item.find(['span', 'div', 'p'], class_=lambda x: x and 'date' in x.lower())
+                        if date_elem:
+                            date_text = date_elem.get_text(strip=True)
+                        
+                        # イベント関連キーワードでフィルタリング
+                        if title and any(keyword in title for keyword in ["花火", "祭り", "まつり", "フェス", "コンサート", "イベント", "大会"]):
                             events.append({
                                 "title": title,
-                                "date": event_date,
-                                "source": "市公式",
+                                "date": date_text,
+                                "source": "市公式" if "city.fukuchiyama" in url else "観光協会",
                                 "type": "special_event"
                             })
+                            print(f"市公式イベント取得: {title}")
+                            
                     except Exception as e:
                         print(f"市公式イベント解析エラー: {e}")
+                        continue
+                        
             except Exception as e:
                 print(f"市公式サイトアクセスエラー ({url}): {e}")
+                continue
+                
     except Exception as e:
         print(f"市公式サイト全体エラー: {e}")
+    
     return events
 
 # ==== イベントフィルタ ====
