@@ -150,14 +150,16 @@ def get_annual_events():
     today = datetime.date.today()
     events = []
     annual_events = {
-        (8, 15): {"title": "福知山花火大会", "type": "fireworks"},
-        (8, 16): {"title": "ドッコイセまつり", "type": "festival"},
-        (10, 1): {"title": "福知山市民まつり", "type": "festival"},
+        (7, 26): {"title": "あやべ水無月まつり花火大会2025 綾部市第1市民グラウンド 京都府綾部市川糸町天王森", "type": "fireworks"},
+        (8, 2): {"title": "鬼力の由良川夏まつり", "type": "festival"},
+        (8, 11): {"title": "福知山HANABI2025", "type": "fireworks"},
+        (8, 12): {"title": "ドッコイセまつり(午前11：00～ドッコイセこども大会)", "type": "festival"},
+        (8, 14): {"title": "ドッコイセまつり(午後7：30～オープニングイベント)", "type": "festival"},
+        (8, 15): {"title": "ドッコイセまつり(午後8：00～9：00一般参加)", "type": "festival"},
+        (8, 23): {"title": "ドッコイセまつり(午後7：15～8：00学生大会（広小路）", "type": "festival"},
+        (8, 24): {"title": "ドッコイセまつり(午後7：00～9：00『駅北で市民総踊り』", "type": "festival"},
         (11, 23): {"title": "福知山マラソン", "type": "sports"},
-        (12, 31): {"title": "福知山カウントダウン", "type": "countdown"},
-        (1, 1): {"title": "福知山初詣", "type": "newyear"},
         (4, 1): {"title": "福知山さくらまつり", "type": "festival"},
-        (7, 15): {"title": "鬼力の由良川夏まつり", "type": "festival"},
     }
     today_key = (today.month, today.day)
     if today_key in annual_events:
